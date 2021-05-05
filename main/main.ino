@@ -21,11 +21,16 @@ ADS1100 ads;
 const uint16_t default_max_data = 5; // 動作していない状態のデータ値の最大
 const uint16_t default_min_data = 3; // 動作していない状態のデータ値の最小
 
+#define LED_GPIO_NUM GPIO_NUM_10
+#define LED_ON LOW
+#define LED_OFF HIGH
+
 void setup()
 {
 	M5.begin(true, true, true); // LCDEnable, PowerEnable, SerialEnable(115200)
 	M5.Lcd.setRotation(1);
 	M5.Axp.ScreenBreath(10);
+	pinMode(LED_GPIO_NUM, OUTPUT); // 内蔵LED有効化
 
 	//TFT_eSPI setup
 	Lcd_buff.createSprite(m5.Lcd.width(), m5.Lcd.height());
@@ -76,12 +81,18 @@ void loop()
 		Lcd_buff.drawString("ADC Hat Not Found.", 0, 20, 2);
 	}
 	Lcd_buff.pushSprite(0, 0); // LCDに描画
+	// LEDがついていれば消灯
+	if (digitalRead(LED_GPIO_NUM) == LED_ON)
+	{
+		digitalWrite(LED_GPIO_NUM, LED_OFF);
+	}
 	delay(10);
 }
 
 void send_power_toggle()
 {
 	Serial.println("send");
+	digitalWrite(LED_GPIO_NUM, LED_ON);
 	// ここで赤外線信号を送信する
 	irsend.sendNEC(power_buttone_code, 32);
 }
