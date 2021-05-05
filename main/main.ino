@@ -6,9 +6,12 @@
 #include <Wire.h>
 #include "ADS1100.h"
 
+//TFT_eSPI liblary
+TFT_eSprite Lcd_buff = TFT_eSprite(&M5.Lcd); // LCDのスプライト表示ライブラリ
+
 // M5StickCのIR
-const uint16_t kIrLed = 32;
-IRsend irsend(kIrLed);
+const uint16_t kIrLed_pin_number = 32;
+IRsend irsend(kIrLed_pin_number);
 const uint32_t power_buttone_code = 0x7E8154AB;
 
 // M5StickCのADC Hat
@@ -22,8 +25,12 @@ void setup()
 {
 	M5.begin(true, true, true); // LCDEnable, PowerEnable, SerialEnable(115200)
 	M5.Lcd.setRotation(1);
-	M5.Lcd.fillScreen(BLACK);
-	M5.Lcd.setCursor(15, 10); //文字表示の左上位置を設定
+	M5.Axp.ScreenBreath(10);
+
+	//TFT_eSPI setup
+	Lcd_buff.createSprite(m5.Lcd.width(), m5.Lcd.height());
+	Lcd_buff.fillRect(0, 0, m5.Lcd.width(), m5.Lcd.height(), TFT_BLACK);
+	Lcd_buff.pushSprite(0, 0);
 
 	irsend.begin();
 
@@ -42,7 +49,8 @@ void loop()
 	address = ads.ads_i2cAddress;
 	Wire.beginTransmission(address);
 	error = Wire.endTransmission();
-	M5.update(); // ボタン押下の検知に必須
+	M5.update();					// ボタン押下の検知に必須
+	Lcd_buff.fillSprite(TFT_BLACK); // 画面を黒塗りでリセット
 
 	// M5ボタン(BtnA)が押されたとき
 	if (M5.BtnA.wasPressed())
@@ -62,10 +70,12 @@ void loop()
 	{
 		// ADS Hatを検出できない場合
 		Serial.println("ADS1100 Disconnected!");
-		M5.Lcd.setTextFont(4);
-		M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-		M5.Lcd.drawString("Not Found.", 0, 20, 2);
+		Lcd_buff.setTextFont(2);
+		Lcd_buff.setCursor(10, 10); //文字表示位置を設定
+		Lcd_buff.setTextColor(TFT_WHITE, TFT_BLACK);
+		Lcd_buff.drawString("ADC Hat Not Found.", 0, 20, 2);
 	}
+	Lcd_buff.pushSprite(0, 0); // LCDに描画
 	delay(10);
 }
 
@@ -85,7 +95,6 @@ void voltage_view(int16_t ads_result)
 	int16_t vol;
 	float temp;
 
-	Serial.print("Digital Value of Analog Input between Channel 0 and 1: ");
 	Serial.println(ads_result);
 
 	char data[20] = {0};
@@ -93,16 +102,15 @@ void voltage_view(int16_t ads_result)
 	temp = ads_result * ADC_BASE * 4;
 	vol = temp * 1000;
 
-	M5.Lcd.fillRect(0, 120, M5.Lcd.width(), M5.Lcd.height() - 120, BLACK); // 描画範囲を消す
-	M5.Lcd.setTextFont(2);
+	Lcd_buff.setTextFont(2);
 
-	M5.Lcd.setCursor(6, 120); //文字表示位置を設定
-	M5.Lcd.setTextColor(ORANGE);
-	M5.lcd.printf("Raw data : %s", data);
+	Lcd_buff.setCursor(6, 120); //文字表示位置を設定
+	Lcd_buff.setTextColor(TFT_ORANGE);
+	Lcd_buff.printf("Raw data : %s", data);
 
-	M5.Lcd.setCursor(110, 120); //文字表示位置を設定
-	M5.Lcd.setTextColor(GREEN);
-	M5.lcd.printf("Convert to : %d", vol);
-	M5.Lcd.setCursor(220, 120); //文字表示の左上位置を設定
-	M5.lcd.print("mV");
+	Lcd_buff.setCursor(110, 120); //文字表示位置を設定
+	Lcd_buff.setTextColor(TFT_GREEN);
+	Lcd_buff.printf("Convert to : %d", vol);
+	Lcd_buff.setCursor(220, 120); //文字表示の左上位置を設定
+	Lcd_buff.print("mV");
 }
