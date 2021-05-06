@@ -25,16 +25,30 @@ ADS1100 ads;
 const int16_t default_max_data = 10; // 動作していない状態のデータ値の最大
 const int16_t default_min_data = -6; // 動作していない状態のデータ値の最小
 
+// LCD
+const uint8_t max_ScreenBreath = 9;
+const uint8_t min_ScreenBreath = 7;
+
 // LED
 #define LED_GPIO_NUM GPIO_NUM_10
 #define LED_ON LOW
 #define LED_OFF HIGH
 
+// LCD Timer
+const uint8_t timer_mm = 20;
+const uint8_t timer_ss = 0;
+
+static uint8_t conv2d(const char *p); // Forward declaration needed for IDE 1.6.x
+uint8_t hh = conv2d(__TIME__), mm = timer_mm, ss = timer_ss;
+boolean is_measuring = true;
+byte xsecs = 0, omm = 99, oss = 99;
+uint32_t targetTime = 0;
+
 void setup()
 {
 	M5.begin(true, true, true); // LCDEnable, PowerEnable, SerialEnable(115200)
 	M5.Lcd.setRotation(1);
-	M5.Axp.ScreenBreath(10);
+	M5.Axp.ScreenBreath(max_ScreenBreath);
 	pinMode(LED_GPIO_NUM, OUTPUT); // 内蔵LED有効化
 
 	//TFT_eSPI setup
@@ -51,6 +65,9 @@ void setup()
 	// ads.setRate(RATE_32);		  // 32SPS
 	ads.setOSMode(OSMODE_SINGLE); // Set to start a single-conversion
 	ads.begin();
+
+	// timer
+	targetTime = millis() + 1000;
 }
 
 void loop()
@@ -64,10 +81,16 @@ void loop()
 	Lcd_buff.fillSprite(TFT_BLACK); // 画面を黒塗りでリセット
 
 	// M5ボタン(BtnA)が押されたとき
-	if (M5.BtnA.wasPressed())
+	if (M5.BtnA.wasReleased())
 	{
 		send_power_toggle();
 	}
+	if (M5.BtnB.wasReleased())
+	{
+		timer_reset();
+	}
+
+	lcd_timer_view();
 
 	// ADS Hatによる電圧チェック処理
 	if (error == 0)
@@ -87,12 +110,85 @@ void loop()
 		Lcd_buff.drawString("ADC Hat Not Found.", 0, 20, 2);
 	}
 	Lcd_buff.pushSprite(0, 0); // LCDに描画
+	delay(10);
+
 	// LEDがついていれば消灯
 	if (digitalRead(LED_GPIO_NUM) == LED_ON)
 	{
 		digitalWrite(LED_GPIO_NUM, LED_OFF);
 	}
-	delay(10);
+}
+
+void timer_reset()
+{
+	mm = timer_mm;
+	ss = timer_ss;
+	is_measuring = true;
+}
+
+void lcd_timer_view()
+{
+	if (targetTime < millis() && is_measuring)
+	{
+		// Set next update for 1 second later
+		targetTime = millis() + 1000;
+		// Adjust the time values by adding 1 second
+		if (ss == 0 && mm == 0)
+		{
+			is_measuring = false; //stop
+		}
+		else
+		{
+			ss = ss - 1;
+		}
+		if (ss == 255)
+		{				 // Check for roll-over
+			ss = 59;	 // Reset seconds to zero
+			mm = mm - 1; // Advance minute
+			if (mm == 255)
+			{ // Check for roll-over
+				mm = 0;
+			}
+		}
+	}
+
+	// タイマーが停止したらバックライトを消す
+	if (!is_measuring)
+	{
+		M5.Axp.ScreenBreath(min_ScreenBreath);
+	}
+	else
+	{
+		M5.Axp.ScreenBreath(max_ScreenBreath);
+	}
+	// Draw digital time
+	int xpos = -3;
+	int ypos = 10; // Top left corner ot clock text, about half way down
+	int ysecs = ypos;
+	Lcd_buff.setTextColor(TFT_WHITE);
+	// Redraw hours and minutes time every minute
+	omm = mm;
+	if (mm < 10)
+		xpos += Lcd_buff.drawChar('0', xpos, ypos, 8);
+	xpos += Lcd_buff.drawNumber(mm, xpos, ypos, 8);
+	xsecs = xpos;
+	// Redraw seconds time every second
+	oss = ss;
+	xpos = xsecs;
+	if (ss % 2)
+	{														 // Flash the colons on/off
+		Lcd_buff.setTextColor(0x39C4, TFT_BLACK);			 // Set colour to grey to dim colon
+		xpos += Lcd_buff.drawChar(':', xsecs, ysecs - 8, 8); // Seconds colon
+		Lcd_buff.setTextColor(TFT_WHITE);
+	}
+	else
+	{
+		xpos += Lcd_buff.drawChar(':', xsecs, ysecs - 8, 8); // Seconds colon
+	}
+	//Draw seconds
+	if (ss < 10)
+		xpos += Lcd_buff.drawChar('0', xpos, ysecs, 8); // Add leading zero
+	Lcd_buff.drawNumber(ss, xpos, ysecs, 8);			// Draw seconds
 }
 
 void send_power_toggle()
@@ -107,10 +203,16 @@ void voltage_check(int16_t ads_result)
 {
 	if (ads_result < default_min_data || ads_result > default_max_data)
 	{
-		// M5.Beep.tone(4000);
-		// delay(100);
-		// M5.Beep.mute();
 		Serial.print("default value over!!!!!!!!!! : ");
+		Lcd_buff.setTextFont(2);
+		Lcd_buff.setCursor(6, 100); //文字表示位置を設定
+		Lcd_buff.setTextColor(TFT_RED);
+		Lcd_buff.printf("Default range over(%d<%d) : %d", default_min_data, default_max_data, ads_result);
+		if (!is_measuring)
+		{
+			send_power_toggle();
+		}
+		timer_reset();
 	}
 }
 
@@ -137,4 +239,13 @@ void voltage_view(int16_t ads_result)
 	Lcd_buff.printf("Convert to : %d", vol);
 	Lcd_buff.setCursor(220, 120); //文字表示の左上位置を設定
 	Lcd_buff.print("mV");
+}
+
+// Function to extract numbers from compile time string
+static uint8_t conv2d(const char *p)
+{
+	uint8_t v = 0;
+	if ('0' <= *p && *p <= '9')
+		v = *p - '0';
+	return 10 * v + *++p - '0';
 }
