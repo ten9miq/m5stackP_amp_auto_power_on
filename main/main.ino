@@ -35,14 +35,12 @@ const uint8_t min_ScreenBreath = 7;
 #define LED_OFF HIGH
 
 // LCD Timer
-const uint8_t timer_mm = 20;
-const uint8_t timer_ss = 0;
-
-static uint8_t conv2d(const char *p); // Forward declaration needed for IDE 1.6.x
-uint8_t hh = conv2d(__TIME__), mm = timer_mm, ss = timer_ss;
+const uint8_t timer_mm = 20; // タイマーの分数
+const uint8_t timer_ss = 0;	 // タイマーの秒数
+uint8_t mm = timer_mm, ss = timer_ss;
 boolean is_measuring = true;
 byte xsecs = 0, omm = 99, oss = 99;
-uint32_t targetTime = 0;
+uint32_t targetTime = 0; // 次回更新のタイミング
 
 void setup()
 {
@@ -239,13 +237,4 @@ void voltage_view(int16_t ads_result)
 	Lcd_buff.printf("Convert to : %d", vol);
 	Lcd_buff.setCursor(220, 120); //文字表示の左上位置を設定
 	Lcd_buff.print("mV");
-}
-
-// Function to extract numbers from compile time string
-static uint8_t conv2d(const char *p)
-{
-	uint8_t v = 0;
-	if ('0' <= *p && *p <= '9')
-		v = *p - '0';
-	return 10 * v + *++p - '0';
 }
