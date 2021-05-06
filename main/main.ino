@@ -18,9 +18,14 @@ const uint32_t power_buttone_code = 0x7E8154AB;
 ADS1100 ads;
 #define REF_VOL 3.3
 #define ADC_BASE REF_VOL / 32768
-const uint16_t default_max_data = 5; // 動作していない状態のデータ値の最大
-const uint16_t default_min_data = 3; // 動作していない状態のデータ値の最小
+// 32sps
+// const uint16_t default_max_data = 21; // 動作していない状態のデータ値の最大
+// const uint16_t default_min_data = 14; // 動作していない状態のデータ値の最小
+// 128sps
+const int16_t default_max_data = 10; // 動作していない状態のデータ値の最大
+const int16_t default_min_data = -6; // 動作していない状態のデータ値の最小
 
+// LED
 #define LED_GPIO_NUM GPIO_NUM_10
 #define LED_ON LOW
 #define LED_OFF HIGH
@@ -43,7 +48,8 @@ void setup()
 	ads.setGain(GAIN_ONE);						  // 1x gain(default)
 	ads.setMode(MODE_CONTIN);					  // Continuous conversion mode (default)
 	ads.setRate(RATE_128);						  // 128SPS
-	ads.setOSMode(OSMODE_SINGLE);				  // Set to start a single-conversion
+	// ads.setRate(RATE_32);		  // 32SPS
+	ads.setOSMode(OSMODE_SINGLE); // Set to start a single-conversion
 	ads.begin();
 }
 
@@ -68,8 +74,8 @@ void loop()
 	{
 		int16_t ads_result;
 		ads_result = ads.Measure_Differential();
+		voltage_check(ads_result);
 		voltage_view(ads_result);
-		voltage_check();
 	}
 	else
 	{
@@ -97,8 +103,15 @@ void send_power_toggle()
 	irsend.sendNEC(power_buttone_code, 32);
 }
 
-void voltage_check()
+void voltage_check(int16_t ads_result)
 {
+	if (ads_result < default_min_data || ads_result > default_max_data)
+	{
+		// M5.Beep.tone(4000);
+		// delay(100);
+		// M5.Beep.mute();
+		Serial.print("default value over!!!!!!!!!! : ");
+	}
 }
 
 void voltage_view(int16_t ads_result)
