@@ -23,7 +23,7 @@ ADS1100 ads;
 // const uint16_t default_min_data = 14; // 動作していない状態のデータ値の最小
 // 128sps
 const int16_t default_max_data = 10; // 動作していない状態のデータ値の最大
-const int16_t default_min_data = -6; // 動作していない状態のデータ値の最小
+const int16_t default_min_data = -5; // 動作していない状態のデータ値の最小
 
 // LCD
 const uint8_t max_ScreenBreath = 9;
@@ -35,8 +35,8 @@ const uint8_t min_ScreenBreath = 7;
 #define LED_OFF HIGH
 
 // LCD Timer
-const uint8_t timer_mm = 20; // タイマーの分数
-const uint8_t timer_ss = 0;	 // タイマーの秒数
+const uint8_t timer_mm = 17; // タイマーの分数
+const uint8_t timer_ss = 56; // タイマーの秒数
 uint8_t mm = timer_mm, ss = timer_ss;
 boolean is_measuring = true;
 byte xsecs = 0, omm = 99, oss = 99;
@@ -86,6 +86,10 @@ void loop()
 	if (M5.BtnB.wasReleased())
 	{
 		timer_reset();
+	}
+	if (M5.Axp.GetBtnPress() == 2)
+	{
+		esp_restart();
 	}
 
 	lcd_timer_view();
